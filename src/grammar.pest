@@ -8,7 +8,7 @@ nrtm_comment          = _{ "%" ~ (!NEWLINE ~ ANY)* }
 // atomic, no whitespace accepted
 num = @{ ASCII_DIGIT+ }
 
-///// NRTM //////
+// NRTM
 nrtm_add_verb     = _{ "ADD" }
 nrtm_del_verb     = _{ "DEL" }
 rpsl_object_start = _{ NEWLINE ~ NEWLINE }
@@ -22,12 +22,13 @@ v3_del_operation = ${ nrtm_del_verb ~ no_newline_whitespace ~ num ~ rpsl_object_
 v3_operation     = ${ (v3_add_operation | v3_del_operation) ~ rpsl_object }
 
 
-////// RPSL //////
+// RPSL
 // rpsl is not completely parsed, can be passed on to rpsl-rs for complete parsing
 rpsl_key        = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "-" | "_")+ }
 rpsl_kvsep      = @{ ":" ~ no_newline_whitespace }
 free_form       = @{ (!attr_sep ~ ANY)* }
 attr_sep        = @{ NEWLINE ~ (!line_cont ~ ANY) }
-rpsl_attr       = ${ rpsl_key ~ rpsl_kvsep ~ free_form ~ NEWLINE}
-line_comment    = @{ COMMENT ~ NEWLINE }
-rpsl_object     = { rpsl_attr ~ ( line_comment | rpsl_attr )+ }
+rpsl_attr       = ${ NEWLINE ~ rpsl_key ~ rpsl_kvsep ~ free_form }
+rpsl_start_attr = ${ rpsl_key ~ rpsl_kvsep ~ free_form }
+line_comment    = @{ NEWLINE ~ COMMENT }
+rpsl_object     = { rpsl_start_attr ~ ( line_comment | rpsl_attr )+ }

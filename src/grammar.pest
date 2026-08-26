@@ -31,4 +31,4 @@ attr_sep        = @{ NEWLINE ~ (!line_cont ~ ANY) }
 rpsl_attr       = ${ NEWLINE ~ rpsl_key ~ rpsl_kvsep ~ free_form }
 rpsl_start_attr = ${ rpsl_key ~ rpsl_kvsep ~ free_form }
 line_comment    = @{ NEWLINE ~ COMMENT }
-rpsl_object     = { rpsl_start_attr ~ ( line_comment | rpsl_attr )+ ~ NEWLINE }
+rpsl_object     =  { rpsl_start_attr ~ ( line_comment | rpsl_attr )+ ~ NEWLINE ~ NEWLINE }

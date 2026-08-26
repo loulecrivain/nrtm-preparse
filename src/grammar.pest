@@ -1,7 +1,7 @@
 WHITESPACE            = _{ " " | "\t" | (NEWLINE ~ line_cont) }
 line_cont             = _{ " " | "\t" | "+" }
 no_newline_whitespace = _{ " " | "\t" }
-COMMENT               = _{ rpsl_comment | rpsl_comment }
+COMMENT               = _{ rpsl_comment | nrtm_comment }
 rpsl_comment          = _{ "#" ~ (!NEWLINE ~ ANY)* }
 nrtm_comment          = _{ "%" ~ (!NEWLINE ~ ANY)* }
 

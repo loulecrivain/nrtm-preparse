@@ -11,6 +11,7 @@ fn rpsl_object() {
     let obj = "\
 random: field
 with-other: value
+
 ";
 
     NRTMPreParser::parse(Rule::rpsl_object, obj).expect("rpsl obj parse failed");
@@ -23,6 +24,7 @@ random: field
 # comment
 with-other: value
 comment: yes # another
+
 ";
 
     NRTMPreParser::parse(Rule::rpsl_object, obj).expect("rpsl obj parse failed");

@@ -4,6 +4,7 @@ mod tests;
 use pest::error::Error;
 use pest::iterators::{Pair, Pairs};
 use pest_derive::Parser;
+use std::mem::discriminant;
 
 #[derive(Debug, Parser)]
 #[grammar = "./grammar.pest"]
@@ -35,10 +36,10 @@ pub enum ParseError {
     MalformedSerial(std::num::ParseIntError),
 }
 
-pub fn try_parse_nrtmv3(str: &str) -> Result<NRTMMessage<'_>, ParseError> {
+fn try_parse_nrtm(root_type: Rule, str: &str) -> Result<NRTMMessage<'_>, ParseError> {
     use pest::Parser;
 
-    let res = NRTMPreParser::parse(Rule::v3_operation, str);
+    let res = NRTMPreParser::parse(root_type, str);
 
     match res {
         Err(e) => match e {
@@ -50,7 +51,9 @@ pub fn try_parse_nrtmv3(str: &str) -> Result<NRTMMessage<'_>, ParseError> {
                     },
                 ..
             } => match (&positives[..], &negatives[..]) {
-                ([Rule::v3_operation, ..], _) => Err(ParseError::NoMatch), // parser couldnt descend further than root
+                ([r, ..], _) if discriminant(r) == discriminant(&root_type) => {
+                    Err(ParseError::NoMatch)
+                } // parser couldnt descend further than root
                 ([_, ..], _) => Err(ParseError::Incomplete), // not root so parser has descended but input is incomplete
                 _ => Err(ParseError::Parser(e)),
             },
@@ -60,29 +63,12 @@ pub fn try_parse_nrtmv3(str: &str) -> Result<NRTMMessage<'_>, ParseError> {
     }
 }
 
+pub fn try_parse_nrtmv3(str: &str) -> Result<NRTMMessage<'_>, ParseError> {
+    try_parse_nrtm(Rule::v3_operation, str)
+}
+
 pub fn try_parse_nrtmv2(str: &str) -> Result<NRTMMessage<'_>, ParseError> {
-    use pest::Parser;
-
-    let res = NRTMPreParser::parse(Rule::v2_operation, str);
-
-    match res {
-        Err(e) => match e {
-            Error {
-                variant:
-                    pest::error::ErrorVariant::ParsingError {
-                        ref positives,
-                        ref negatives,
-                    },
-                ..
-            } => match (&positives[..], &negatives[..]) {
-                ([Rule::v2_operation, ..], _) => Err(ParseError::NoMatch), // parser couldnt descend further than root
-                ([_, ..], _) => Err(ParseError::Incomplete), // not root so parser has descended but input is incomplete
-                _ => Err(ParseError::Parser(e)),
-            },
-            _ => Err(ParseError::Parser(e)),
-        },
-        Ok(mut pairs) => try_parse_message(pairs.next().ok_or(ParseError::Incomplete)?),
-    }
+    try_parse_nrtm(Rule::v2_operation, str)
 }
 
 pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseError> {

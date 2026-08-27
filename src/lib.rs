@@ -35,7 +35,7 @@ pub enum ParseError {
     MalformedSerial(std::num::ParseIntError),
 }
 
-pub fn try_parse_nrtmv3(str: &str) -> Result<NRTMMessage, ParseError> {
+pub fn try_parse_nrtmv3(str: &str) -> Result<NRTMMessage<'_>, ParseError> {
     use pest::Parser;
 
     let res = NRTMPreParser::parse(Rule::v3_operation, str);
@@ -60,7 +60,7 @@ pub fn try_parse_nrtmv3(str: &str) -> Result<NRTMMessage, ParseError> {
     }
 }
 
-pub fn try_parse_nrtmv2(str: &str) -> Result<NRTMMessage, ParseError> {
+pub fn try_parse_nrtmv2(str: &str) -> Result<NRTMMessage<'_>, ParseError> {
     use pest::Parser;
 
     let res = NRTMPreParser::parse(Rule::v2_operation, str);

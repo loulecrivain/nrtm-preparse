@@ -30,11 +30,62 @@ pub struct NRTMMessage<'a> {
 #[derive(Debug)]
 pub enum ParseError {
     NoMatch,
+    Incomplete,
     Parser(Error<Rule>),
     MalformedSerial(std::num::ParseIntError),
 }
 
-pub fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseError> {
+pub fn try_parse_nrtmv3(str: &str) -> Result<NRTMMessage, ParseError> {
+    use pest::Parser;
+
+    let res = NRTMPreParser::parse(Rule::v3_operation, str);
+
+    match res {
+        Err(e) => match e {
+            Error {
+                variant:
+                    pest::error::ErrorVariant::ParsingError {
+                        ref positives,
+                        ref negatives,
+                    },
+                ..
+            } => match (&positives[..], &negatives[..]) {
+                ([Rule::v3_operation, ..], _) => Err(ParseError::NoMatch), // parser couldnt descend further than root
+                ([_, ..], _) => Err(ParseError::Incomplete), // not root so parser has descended but input is incomplete
+                _ => Err(ParseError::Parser(e)),
+            },
+            _ => Err(ParseError::Parser(e)),
+        },
+        Ok(mut pairs) => try_parse_message(pairs.next().ok_or(ParseError::Incomplete)?),
+    }
+}
+
+pub fn try_parse_nrtmv2(str: &str) -> Result<NRTMMessage, ParseError> {
+    use pest::Parser;
+
+    let res = NRTMPreParser::parse(Rule::v2_operation, str);
+
+    match res {
+        Err(e) => match e {
+            Error {
+                variant:
+                    pest::error::ErrorVariant::ParsingError {
+                        ref positives,
+                        ref negatives,
+                    },
+                ..
+            } => match (&positives[..], &negatives[..]) {
+                ([Rule::v2_operation, ..], _) => Err(ParseError::NoMatch), // parser couldnt descend further than root
+                ([_, ..], _) => Err(ParseError::Incomplete), // not root so parser has descended but input is incomplete
+                _ => Err(ParseError::Parser(e)),
+            },
+            _ => Err(ParseError::Parser(e)),
+        },
+        Ok(mut pairs) => try_parse_message(pairs.next().ok_or(ParseError::Incomplete)?),
+    }
+}
+
+pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseError> {
     fn try_parse_serial_from(iter: &mut Pairs<Rule>) -> Result<u64, ParseError> {
         iter.next()
             .ok_or(ParseError::NoMatch)?

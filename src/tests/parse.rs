@@ -1,4 +1,4 @@
-use crate::{NRTMPreParser, OpType, Rule, Verb};
+use crate::{NRTMPreParser, OpType, ParseError, Rule, Verb};
 use pest::Parser;
 use std::assert_matches;
 
@@ -52,4 +52,50 @@ ADD 666666
     let parsed = crate::try_parse_message(pairs).unwrap();
     assert_matches!(parsed.update, OpType::V3(Verb::ADD, 666_666));
     assert_eq!(parsed.rpsl, rpsl);
+}
+
+#[test]
+fn signal_incomplete_nrtmv3() {
+    let incomplete_nrtmv3 = "\
+ADD 666666
+
+some: property
+and: another one
+# keine endlich
+# kei
+";
+
+    let res = crate::try_parse_nrtmv3(incomplete_nrtmv3);
+
+    assert_matches!(res, Err(ParseError::Incomplete));
+}
+
+#[test]
+fn signal_incomplete_nrtmv2() {
+    let incomplete_nrtmv2 = "\
+ADD
+
+some: property
+and: another one
+# keine endlich
+# kei
+";
+
+    let res = crate::try_parse_nrtmv2(incomplete_nrtmv2);
+
+    assert_matches!(res, Err(ParseError::Incomplete));
+}
+
+#[test]
+fn signal_no_match() {
+    let no_match_nrtmv2 = "\
+lsdjkflkjsdlfkjsldkjf;lsd
+sdlkfjsdlkjfljsdf
+sdlfjlsdkf
+
+";
+
+    let res = crate::try_parse_nrtmv3(no_match_nrtmv2);
+
+    assert_matches!(res, Err(ParseError::NoMatch));
 }

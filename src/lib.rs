@@ -26,6 +26,9 @@ pub enum OpType {
 pub struct NRTMMessage<'a> {
     pub update: OpType,
     pub rpsl: &'a str,
+    // span of the message in the original str, start and end bytes
+    pub start_b: usize,
+    pub end_b: usize,
 }
 
 #[derive(Debug)]
@@ -88,6 +91,7 @@ pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseEr
             return try_parse_message(pair.into_inner().next().ok_or(ParseError::NoMatch)?);
         }
         Rule::v3_add_operation => {
+            let span = pair.as_span();
             let mut inner_rules = pair.into_inner();
             let serial: u64 = try_parse_serial_from(&mut inner_rules)?;
             let rpsl = inner_rules.next().ok_or(ParseError::NoMatch)?.as_str();
@@ -95,9 +99,12 @@ pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseEr
             return Ok(NRTMMessage {
                 update: OpType::V3(Verb::ADD, serial),
                 rpsl,
+                start_b: span.start(),
+                end_b: span.end(),
             });
         }
         Rule::v3_del_operation => {
+            let span = pair.as_span();
             let mut inner_rules = pair.into_inner();
             let serial: u64 = try_parse_serial_from(&mut inner_rules)?;
             let rpsl = inner_rules.next().ok_or(ParseError::NoMatch)?.as_str();
@@ -105,24 +112,32 @@ pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseEr
             return Ok(NRTMMessage {
                 update: OpType::V3(Verb::DEL, serial),
                 rpsl,
+                start_b: span.start(),
+                end_b: span.end(),
             });
         }
         Rule::v2_add_operation => {
+            let span = pair.as_span();
             let mut inner_rules = pair.into_inner();
             let rpsl = inner_rules.next().ok_or(ParseError::NoMatch)?.as_str();
 
             return Ok(NRTMMessage {
                 update: OpType::V2(Verb::ADD),
                 rpsl,
+                start_b: span.start(),
+                end_b: span.end(),
             });
         }
         Rule::v2_del_operation => {
+            let span = pair.as_span();
             let mut inner_rules = pair.into_inner();
             let rpsl = inner_rules.next().ok_or(ParseError::NoMatch)?.as_str();
 
             return Ok(NRTMMessage {
                 update: OpType::V2(Verb::DEL),
                 rpsl,
+                start_b: span.start(),
+                end_b: span.end(),
             });
         }
         _ => {}

@@ -22,13 +22,30 @@ pub enum OpType {
     V3(Verb, u64),
 }
 
+// this is just to avoid exposing pest API directly
+// to user crates
+#[derive(Debug)]
+pub struct Span<'a> {
+    pub start_b: usize,
+    pub end_b: usize,
+    pub str: &'a str,
+}
+
+impl Span<'_> {
+    fn new(start_b: usize, end_b: usize, str: &'_ str) -> Span<'_> {
+        Span {
+            start_b,
+            end_b,
+            str,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct NRTMMessage<'a> {
     pub update: OpType,
     pub rpsl: &'a str,
-    // span of the message in the original str, start and end bytes
-    pub start_b: usize,
-    pub end_b: usize,
+    pub span: Span<'a>,
 }
 
 #[derive(Debug)]
@@ -99,8 +116,7 @@ pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseEr
             return Ok(NRTMMessage {
                 update: OpType::V3(Verb::ADD, serial),
                 rpsl,
-                start_b: span.start(),
-                end_b: span.end(),
+                span: Span::new(span.start(), span.end(), span.as_str()),
             });
         }
         Rule::v3_del_operation => {
@@ -112,8 +128,7 @@ pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseEr
             return Ok(NRTMMessage {
                 update: OpType::V3(Verb::DEL, serial),
                 rpsl,
-                start_b: span.start(),
-                end_b: span.end(),
+                span: Span::new(span.start(), span.end(), span.as_str()),
             });
         }
         Rule::v2_add_operation => {
@@ -124,8 +139,7 @@ pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseEr
             return Ok(NRTMMessage {
                 update: OpType::V2(Verb::ADD),
                 rpsl,
-                start_b: span.start(),
-                end_b: span.end(),
+                span: Span::new(span.start(), span.end(), span.as_str()),
             });
         }
         Rule::v2_del_operation => {
@@ -136,8 +150,7 @@ pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseEr
             return Ok(NRTMMessage {
                 update: OpType::V2(Verb::DEL),
                 rpsl,
-                start_b: span.start(),
-                end_b: span.end(),
+                span: Span::new(span.start(), span.end(), span.as_str()),
             });
         }
         _ => {}

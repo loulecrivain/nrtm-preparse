@@ -26,8 +26,8 @@ ADD
     assert_matches!(parsed.update, OpType::V2(Verb::ADD));
     assert_eq!(parsed.rpsl, rpsl);
     // check that span is correct
-    assert_eq!(parsed.start_b, 0);
-    assert_eq!(parsed.end_b, nrtmv2.len());
+    assert_eq!(parsed.span.start_b, 0);
+    assert_eq!(parsed.span.end_b, nrtmv2.len());
 }
 
 #[test]
@@ -54,8 +54,8 @@ ADD 666666
     assert_matches!(parsed.update, OpType::V3(Verb::ADD, 666_666));
     assert_eq!(parsed.rpsl, rpsl);
     // check that span is correct
-    assert_eq!(parsed.start_b, 0);
-    assert_eq!(parsed.end_b, nrtmv3.len());
+    assert_eq!(parsed.span.start_b, 0);
+    assert_eq!(parsed.span.end_b, nrtmv3.len());
 }
 
 #[test]
@@ -77,8 +77,8 @@ with: double lf ending
 
     let res = crate::try_parse_nrtmv3(nrtmv3).unwrap();
     // check that span is correct
-    assert_eq!(res.start_b, nrtmv3.find("ADD").unwrap());
-    assert_eq!(res.end_b, nrtmv3.rfind("ADD").unwrap());
+    assert_eq!(res.span.start_b, nrtmv3.find("ADD").unwrap());
+    assert_eq!(res.span.end_b, nrtmv3.rfind("ADD").unwrap());
 }
 
 #[test]

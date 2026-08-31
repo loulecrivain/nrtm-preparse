@@ -82,6 +82,44 @@ with: double lf ending
 }
 
 #[test]
+fn signal_leading_garbage() {
+    let nrtmv3 = "\
+\\*xxtsome: leading garbage
+a-malformed: object
+
+ADD 666666
+
+some: property
+and: another one
+with: double lf ending
+
+ADD 666667
+
+some: property
+and: another one
+with: double lf ending
+
+";
+
+    let e = crate::try_parse_nrtmv3(nrtmv3)
+        .err()
+        .expect("parse error expected");
+    match e {
+        ParseError::LeadingGarbage(span) => {
+            assert_eq!(span.start_b, 0);
+            assert_eq!(span.end_b, nrtmv3.find("ADD").unwrap());
+            assert_eq!(
+                span.str,
+                "\\*xxtsome: leading garbage\na-malformed: object\n\n"
+            );
+        }
+        any => {
+            panic!("got wrong error type {:?}", any)
+        }
+    }
+}
+
+#[test]
 fn signal_incomplete_nrtmv3() {
     let incomplete_nrtmv3 = "\
 ADD 666666
@@ -124,5 +162,8 @@ sdlfjlsdkf
 
     let res = crate::try_parse_nrtmv3(no_match_nrtmv2);
 
-    assert_matches!(res, Err(ParseError::NoMatch));
+    // technically, with garbage-proof grammar, leading garbage with no match
+    // will always be intepreted as incomplete, as more append *could* result
+    // in a match
+    assert_matches!(res, Err(ParseError::Incomplete));
 }

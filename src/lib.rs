@@ -2,7 +2,7 @@
 mod tests;
 
 use pest::error::Error;
-use pest::iterators::{Pair, Pairs};
+use pest::iterators::Pair;
 use pest_derive::Parser;
 use std::mem::discriminant;
 
@@ -31,12 +31,12 @@ pub struct Span<'a> {
     pub str: &'a str,
 }
 
-impl Span<'_> {
-    fn new(start_b: usize, end_b: usize, str: &'_ str) -> Span<'_> {
+impl<'a> From<pest::Span<'a>> for Span<'a> {
+    fn from(pest_span: pest::Span<'a>) -> Span<'a> {
         Span {
-            start_b,
-            end_b,
-            str,
+            start_b: pest_span.start(),
+            end_b: pest_span.end(),
+            str: pest_span.as_str(),
         }
     }
 }
@@ -49,14 +49,15 @@ pub struct NRTMMessage<'a> {
 }
 
 #[derive(Debug)]
-pub enum ParseError {
+pub enum ParseError<'a> {
     NoMatch,
     Incomplete,
     Parser(Error<Rule>),
     MalformedSerial(std::num::ParseIntError),
+    LeadingGarbage(Span<'a>),
 }
 
-fn try_parse_nrtm(root_type: Rule, str: &str) -> Result<NRTMMessage<'_>, ParseError> {
+fn try_parse_nrtm(root_type: Rule, str: &str) -> Result<NRTMMessage<'_>, ParseError<'_>> {
     use pest::Parser;
 
     let res = NRTMPreParser::parse(root_type, str);
@@ -83,52 +84,67 @@ fn try_parse_nrtm(root_type: Rule, str: &str) -> Result<NRTMMessage<'_>, ParseEr
     }
 }
 
-pub fn try_parse_nrtmv3(str: &str) -> Result<NRTMMessage<'_>, ParseError> {
+pub fn try_parse_nrtmv3(str: &str) -> Result<NRTMMessage<'_>, ParseError<'_>> {
     try_parse_nrtm(Rule::v3_operation, str)
 }
 
-pub fn try_parse_nrtmv2(str: &str) -> Result<NRTMMessage<'_>, ParseError> {
+pub fn try_parse_nrtmv2(str: &str) -> Result<NRTMMessage<'_>, ParseError<'_>> {
     try_parse_nrtm(Rule::v2_operation, str)
 }
 
 pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseError> {
-    fn try_parse_serial_from(iter: &mut Pairs<Rule>) -> Result<u64, ParseError> {
-        iter.next()
-            .ok_or(ParseError::NoMatch)?
-            .as_str()
-            .parse()
-            .map_err(ParseError::MalformedSerial)
+    fn try_parse_serial_from<'a>(serial: &Pair<'a, Rule>) -> Result<u64, ParseError<'a>> {
+        serial.as_str().parse().map_err(ParseError::MalformedSerial)
+    }
+
+    fn no_leading_garbage_or_err<'a>(
+        leading_garbage: &Pair<'a, Rule>,
+    ) -> Result<(), ParseError<'a>> {
+        let span = leading_garbage.as_span();
+        if span.start() == span.end() {
+            Ok(())
+        } else {
+            Err(ParseError::LeadingGarbage(span.into()))
+        }
     }
 
     match pair.as_rule() {
         Rule::v2_operation => {
-            return try_parse_message(pair.into_inner().next().ok_or(ParseError::NoMatch)?);
+            let mut inner_rules = pair.into_inner();
+            let leading_garbage = inner_rules.next().ok_or(ParseError::NoMatch)?;
+            no_leading_garbage_or_err(&leading_garbage)?;
+            return try_parse_message(inner_rules.next().ok_or(ParseError::NoMatch)?);
         }
         Rule::v3_operation => {
-            return try_parse_message(pair.into_inner().next().ok_or(ParseError::NoMatch)?);
+            let mut inner_rules = pair.into_inner();
+            let leading_garbage = inner_rules.next().ok_or(ParseError::NoMatch)?;
+            no_leading_garbage_or_err(&leading_garbage)?;
+            return try_parse_message(inner_rules.next().ok_or(ParseError::NoMatch)?);
         }
         Rule::v3_add_operation => {
             let span = pair.as_span();
             let mut inner_rules = pair.into_inner();
-            let serial: u64 = try_parse_serial_from(&mut inner_rules)?;
+            let serial_pair = inner_rules.next().ok_or(ParseError::NoMatch)?;
+            let serial: u64 = try_parse_serial_from(&serial_pair)?;
             let rpsl = inner_rules.next().ok_or(ParseError::NoMatch)?.as_str();
 
             return Ok(NRTMMessage {
                 update: OpType::V3(Verb::ADD, serial),
                 rpsl,
-                span: Span::new(span.start(), span.end(), span.as_str()),
+                span: span.into(),
             });
         }
         Rule::v3_del_operation => {
             let span = pair.as_span();
             let mut inner_rules = pair.into_inner();
-            let serial: u64 = try_parse_serial_from(&mut inner_rules)?;
+            let serial_pair = inner_rules.next().ok_or(ParseError::NoMatch)?;
+            let serial: u64 = try_parse_serial_from(&serial_pair)?;
             let rpsl = inner_rules.next().ok_or(ParseError::NoMatch)?.as_str();
 
             return Ok(NRTMMessage {
                 update: OpType::V3(Verb::DEL, serial),
                 rpsl,
-                span: Span::new(span.start(), span.end(), span.as_str()),
+                span: span.into(),
             });
         }
         Rule::v2_add_operation => {
@@ -139,7 +155,7 @@ pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseEr
             return Ok(NRTMMessage {
                 update: OpType::V2(Verb::ADD),
                 rpsl,
-                span: Span::new(span.start(), span.end(), span.as_str()),
+                span: span.into(),
             });
         }
         Rule::v2_del_operation => {
@@ -150,7 +166,7 @@ pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseEr
             return Ok(NRTMMessage {
                 update: OpType::V2(Verb::DEL),
                 rpsl,
-                span: Span::new(span.start(), span.end(), span.as_str()),
+                span: span.into(),
             });
         }
         _ => {}

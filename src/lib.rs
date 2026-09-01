@@ -25,39 +25,39 @@ pub enum OpType {
 // this is just to avoid exposing pest API directly
 // to user crates
 #[derive(Debug)]
-pub struct Span<'a> {
+pub struct Span {
     pub start_b: usize,
     pub end_b: usize,
-    pub str: &'a str,
+    pub str: String,
 }
 
-impl<'a> From<pest::Span<'a>> for Span<'a> {
-    fn from(pest_span: pest::Span<'a>) -> Span<'a> {
+impl From<pest::Span<'_>> for Span {
+    fn from(pest_span: pest::Span) -> Span {
         Span {
             start_b: pest_span.start(),
             end_b: pest_span.end(),
-            str: pest_span.as_str(),
+            str: String::from(pest_span.as_str()),
         }
     }
 }
 
 #[derive(Debug)]
-pub struct NRTMMessage<'a> {
+pub struct NRTMMessage {
     pub update: OpType,
-    pub rpsl: &'a str,
-    pub span: Span<'a>,
+    pub rpsl: String,
+    pub span: Span,
 }
 
 #[derive(Debug)]
-pub enum ParseError<'a> {
+pub enum ParseError {
     NoMatch,
     Incomplete,
     Parser(Error<Rule>),
     MalformedSerial(std::num::ParseIntError),
-    LeadingGarbage(Span<'a>),
+    LeadingGarbage(Span),
 }
 
-fn try_parse_nrtm(root_type: Rule, str: &str) -> Result<NRTMMessage<'_>, ParseError<'_>> {
+fn try_parse_nrtm(root_type: Rule, str: &str) -> Result<NRTMMessage, ParseError> {
     use pest::Parser;
 
     let res = NRTMPreParser::parse(root_type, str);
@@ -101,22 +101,22 @@ fn try_parse_nrtm(root_type: Rule, str: &str) -> Result<NRTMMessage<'_>, ParseEr
     }
 }
 
-pub fn try_parse_nrtmv3(str: &str) -> Result<NRTMMessage<'_>, ParseError<'_>> {
+pub fn try_parse_nrtmv3(str: &str) -> Result<NRTMMessage, ParseError> {
     try_parse_nrtm(Rule::v3_operation, str)
 }
 
-pub fn try_parse_nrtmv2(str: &str) -> Result<NRTMMessage<'_>, ParseError<'_>> {
+pub fn try_parse_nrtmv2(str: &str) -> Result<NRTMMessage, ParseError> {
     try_parse_nrtm(Rule::v2_operation, str)
 }
 
 pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseError> {
-    fn try_parse_serial_from<'a>(serial: &Pair<'a, Rule>) -> Result<u64, ParseError<'a>> {
+    fn try_parse_serial_from(serial: &Pair<Rule>) -> Result<u64, ParseError> {
         serial.as_str().parse().map_err(ParseError::MalformedSerial)
     }
 
-    fn no_leading_garbage_or_err<'a>(
-        leading_garbage: &Pair<'a, Rule>,
-    ) -> Result<(), ParseError<'a>> {
+    fn no_leading_garbage_or_err(
+        leading_garbage: &Pair<Rule>,
+    ) -> Result<(), ParseError> {
         let span = leading_garbage.as_span();
         if span.start() == span.end() {
             Ok(())
@@ -147,7 +147,7 @@ pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseEr
 
             return Ok(NRTMMessage {
                 update: OpType::V3(Verb::ADD, serial),
-                rpsl,
+                rpsl: String::from(rpsl),
                 span: span.into(),
             });
         }
@@ -160,7 +160,7 @@ pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseEr
 
             return Ok(NRTMMessage {
                 update: OpType::V3(Verb::DEL, serial),
-                rpsl,
+                rpsl: String::from(rpsl),
                 span: span.into(),
             });
         }
@@ -171,7 +171,7 @@ pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseEr
 
             return Ok(NRTMMessage {
                 update: OpType::V2(Verb::ADD),
-                rpsl,
+                rpsl: String::from(rpsl),
                 span: span.into(),
             });
         }
@@ -182,7 +182,7 @@ pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseEr
 
             return Ok(NRTMMessage {
                 update: OpType::V2(Verb::DEL),
-                rpsl,
+                rpsl: String::from(rpsl),
                 span: span.into(),
             });
         }

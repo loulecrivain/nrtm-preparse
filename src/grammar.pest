@@ -13,15 +13,16 @@ nrtm_add_verb     = _{ "ADD" }
 nrtm_del_verb     = _{ "DEL" }
 nrtm_any_verb     = _{ nrtm_add_verb | nrtm_del_verb }
 rpsl_object_start = _{ NEWLINE ~ NEWLINE }
+nrtm_line_comments = _{ (COMMENT ~ NEWLINE*)* }
 leading_garbage   =  { (!nrtm_any_verb ~ ANY)* } // robust parsing requires us to ignore non-matching content
 // v2
 v2_add_operation = ${ nrtm_add_verb ~ rpsl_object_start ~ rpsl_object }
 v2_del_operation = ${ nrtm_del_verb ~ rpsl_object_start ~ rpsl_object }
-v2_operation     = ${ leading_garbage ~ (v2_add_operation | v2_del_operation) }
+v2_operation     = ${ nrtm_line_comments ~ leading_garbage ~ (v2_add_operation | v2_del_operation) }
 // v3
 v3_add_operation = ${ nrtm_add_verb ~ no_newline_whitespace ~ num ~ rpsl_object_start ~ rpsl_object }
 v3_del_operation = ${ nrtm_del_verb ~ no_newline_whitespace ~ num ~ rpsl_object_start ~ rpsl_object }
-v3_operation     = ${ leading_garbage ~ (v3_add_operation | v3_del_operation) }
+v3_operation     = ${ nrtm_line_comments ~ leading_garbage ~ (v3_add_operation | v3_del_operation) }
 
 
 // RPSL

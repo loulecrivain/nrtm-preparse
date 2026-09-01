@@ -1,6 +1,9 @@
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "async-streaming")]
+pub mod streaming;
+
 use pest::error::{Error, InputLocation};
 use pest::iterators::Pair;
 use pest_derive::Parser;
@@ -53,8 +56,15 @@ pub enum ParseError {
     NoMatch,
     Incomplete,
     Parser(Error<Rule>),
-    MalformedSerial(std::num::ParseIntError),
+    MalformedSerial(Span, std::num::ParseIntError),
     LeadingGarbage(Span),
+    IoError(std::io::Error),
+    NonUTF8Input(std::string::FromUtf8Error),
+}
+impl From<std::io::Error> for ParseError {
+    fn from(io_err: std::io::Error) -> Self {
+        ParseError::IoError(io_err)
+    }
 }
 
 fn try_parse_nrtm(root_type: Rule, str: &str) -> Result<NRTMMessage, ParseError> {
@@ -110,13 +120,15 @@ pub fn try_parse_nrtmv2(str: &str) -> Result<NRTMMessage, ParseError> {
 }
 
 pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseError> {
-    fn try_parse_serial_from(serial: &Pair<Rule>) -> Result<u64, ParseError> {
-        serial.as_str().parse().map_err(ParseError::MalformedSerial)
+    fn try_parse_serial_from(serial: &Pair<'_, Rule>) -> Result<u64, ParseError> {
+        let span = serial.as_span();
+        serial
+            .as_str()
+            .parse()
+            .map_err(|e| ParseError::MalformedSerial(span.into(), e))
     }
 
-    fn no_leading_garbage_or_err(
-        leading_garbage: &Pair<Rule>,
-    ) -> Result<(), ParseError> {
+    fn no_leading_garbage_or_err(leading_garbage: &Pair<Rule>) -> Result<(), ParseError> {
         let span = leading_garbage.as_span();
         if span.start() == span.end() {
             Ok(())

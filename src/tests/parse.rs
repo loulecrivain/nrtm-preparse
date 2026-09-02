@@ -1,4 +1,4 @@
-use crate::{NRTMPreParser, OpType, ParseError, Rule, Verb};
+use crate::{NRTMParser, OpType, ParseError, PestNRTMParser, Rule, Verb};
 use pest::Parser;
 use std::assert_matches;
 
@@ -18,7 +18,7 @@ ADD
         rpsl
     );
 
-    let pairs = NRTMPreParser::parse(Rule::v2_operation, nrtmv2.as_str())
+    let pairs = PestNRTMParser::parse(Rule::v2_operation, nrtmv2.as_str())
         .expect("parsing nrtm message failed")
         .next()
         .unwrap();
@@ -46,7 +46,7 @@ ADD 666666
         rpsl
     );
 
-    let pairs = NRTMPreParser::parse(Rule::v3_operation, nrtmv3.as_str())
+    let pairs = PestNRTMParser::parse(Rule::v3_operation, nrtmv3.as_str())
         .expect("parsing message failed")
         .next()
         .unwrap();
@@ -75,7 +75,7 @@ with: double lf ending
 
 ";
 
-    let res = crate::try_parse_nrtmv3(nrtmv3).unwrap();
+    let res = crate::NRTMV3Parser::try_parse(nrtmv3).unwrap();
     // check that span is correct
     assert_eq!(res.span.start_b, nrtmv3.find("ADD").unwrap());
     assert_eq!(res.span.end_b, nrtmv3.rfind("ADD").unwrap());
@@ -101,7 +101,7 @@ with: double lf ending
 
 ";
 
-    let e = crate::try_parse_nrtmv3(nrtmv3)
+    let e = crate::NRTMV3Parser::try_parse(nrtmv3)
         .err()
         .expect("parse error expected");
     match e {
@@ -130,7 +130,7 @@ and: another one
 # kei
 ";
 
-    let res = crate::try_parse_nrtmv3(incomplete_nrtmv3);
+    let res = crate::NRTMV3Parser::try_parse(incomplete_nrtmv3);
 
     assert_matches!(res, Err(ParseError::Incomplete));
 }
@@ -146,7 +146,7 @@ and: another one
 # kei
 ";
 
-    let res = crate::try_parse_nrtmv2(incomplete_nrtmv2);
+    let res = crate::NRTMV2Parser::try_parse(incomplete_nrtmv2);
 
     assert_matches!(res, Err(ParseError::Incomplete));
 }
@@ -162,7 +162,7 @@ plus-some: stuff afterwards
 
 ";
 
-    let res = crate::try_parse_nrtmv2(broken_nrtmv2);
+    let res = crate::NRTMV2Parser::try_parse(broken_nrtmv2);
 
     assert_matches!(res, Err(ParseError::Parser(_)));
 }
@@ -176,7 +176,7 @@ sdlfjlsdkf
 
 ";
 
-    let res = crate::try_parse_nrtmv3(no_match_nrtmv2);
+    let res = crate::NRTMV3Parser::try_parse(no_match_nrtmv2);
 
     // technically, with garbage-proof grammar, leading garbage with no match
     // will always be intepreted as incomplete, as more append *could* result

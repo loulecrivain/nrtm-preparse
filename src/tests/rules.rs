@@ -1,9 +1,9 @@
-use crate::{NRTMPreParser, Rule};
+use crate::{PestNRTMParser, Rule};
 use pest::Parser;
 
 #[test]
 fn rpsl_attr() {
-    let mut iter = NRTMPreParser::parse(Rule::rpsl_start_attr, "random: field")
+    let mut iter = PestNRTMParser::parse(Rule::rpsl_start_attr, "random: field")
         .expect("rpsl start attr parse failed");
     let rpsl_start_pair = iter.next().unwrap();
     assert_eq!(rpsl_start_pair.as_rule(), Rule::rpsl_start_attr);
@@ -17,7 +17,7 @@ with-other: value
 
 ";
 
-    let mut iter = NRTMPreParser::parse(Rule::rpsl_object, obj).expect("rpsl obj parse failed");
+    let mut iter = PestNRTMParser::parse(Rule::rpsl_object, obj).expect("rpsl obj parse failed");
     let rpsl_object_pair = iter.next().unwrap();
     assert_eq!(rpsl_object_pair.as_rule(), Rule::rpsl_object);
 }
@@ -33,7 +33,7 @@ comment: yes # another
 
 ";
 
-    let mut iter = NRTMPreParser::parse(Rule::rpsl_object, obj).expect("rpsl obj parse failed");
+    let mut iter = PestNRTMParser::parse(Rule::rpsl_object, obj).expect("rpsl obj parse failed");
     let rpsl_object_pair = iter.next().unwrap();
     assert_eq!(rpsl_object_pair.as_rule(), Rule::rpsl_object);
 }
@@ -49,7 +49,7 @@ that-has: something
 
 ";
 
-    let mut iter = NRTMPreParser::parse(Rule::rpsl_object, obj).unwrap();
+    let mut iter = PestNRTMParser::parse(Rule::rpsl_object, obj).unwrap();
     let rpsl_object_pair = iter.next().unwrap();
     assert_eq!(rpsl_object_pair.as_rule(), Rule::rpsl_object);
 }
@@ -84,7 +84,7 @@ remarks:        ****************************
 ";
 
     let mut iter =
-        NRTMPreParser::parse(Rule::v2_operation, update2).expect("parsing nrtmv2 update failed");
+        PestNRTMParser::parse(Rule::v2_operation, update2).expect("parsing nrtmv2 update failed");
     let nrtmv2_object_pair = iter.next().unwrap();
     assert_eq!(nrtmv2_object_pair.as_rule(), Rule::v2_operation);
 }
@@ -119,7 +119,7 @@ remarks:        ****************************
 ";
 
     let mut iter =
-        NRTMPreParser::parse(Rule::v3_operation, update3).expect("parsing nrtmv3 update failed");
+        PestNRTMParser::parse(Rule::v3_operation, update3).expect("parsing nrtmv3 update failed");
     let nrtmv3_object_pair = iter.next().unwrap();
     assert_eq!(nrtmv3_object_pair.as_rule(), Rule::v3_operation);
 }

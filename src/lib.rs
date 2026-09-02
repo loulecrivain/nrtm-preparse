@@ -1,17 +1,19 @@
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "async-streaming")]
-pub mod streaming;
-
 use pest::error::{Error, InputLocation};
 use pest::iterators::Pair;
 use pest_derive::Parser;
 use std::mem::discriminant;
 
+#[cfg(feature = "async-streaming")]
+mod streaming;
+#[cfg(feature = "async-streaming")]
+use {tokio::io::AsyncRead, tokio_stream::StreamExt, tokio_util::codec::FramedRead};
+
 #[derive(Debug, Parser)]
 #[grammar = "./grammar.pest"]
-pub(crate) struct NRTMPreParser;
+pub(crate) struct PestNRTMParser;
 
 #[derive(Debug)]
 pub enum Verb {
@@ -67,10 +69,50 @@ impl From<std::io::Error> for ParseError {
     }
 }
 
+pub trait NRTMParser {
+    fn try_parse(str: &str) -> Result<NRTMMessage, ParseError>;
+}
+
+#[cfg(feature = "async-streaming")]
+pub trait StreamingNRTMParser<T>
+where
+    T: AsyncRead,
+{
+    fn reader_from(reader: T) -> impl StreamExt<Item = Result<NRTMMessage, ParseError>>;
+}
+
+pub struct NRTMV3Parser;
+impl NRTMParser for NRTMV3Parser {
+    fn try_parse(str: &str) -> Result<NRTMMessage, ParseError> {
+        try_parse_nrtm(Rule::v3_operation, str)
+    }
+}
+
+#[cfg(feature = "async-streaming")]
+impl<T: AsyncRead> StreamingNRTMParser<T> for NRTMV2Parser {
+    fn reader_from(reader: T) -> impl StreamExt<Item = Result<NRTMMessage, ParseError>> {
+        FramedRead::new(reader, streaming::NRTMDec::new_v3())
+    }
+}
+
+#[cfg(feature = "async-streaming")]
+impl<T: AsyncRead> StreamingNRTMParser<T> for NRTMV3Parser {
+    fn reader_from(reader: T) -> impl StreamExt<Item = Result<NRTMMessage, ParseError>> {
+        FramedRead::new(reader, streaming::NRTMDec::new_v2())
+    }
+}
+
+pub struct NRTMV2Parser;
+impl NRTMParser for NRTMV2Parser {
+    fn try_parse(str: &str) -> Result<NRTMMessage, ParseError> {
+        try_parse_nrtm(Rule::v2_operation, str)
+    }
+}
+
 fn try_parse_nrtm(root_type: Rule, str: &str) -> Result<NRTMMessage, ParseError> {
     use pest::Parser;
 
-    let res = NRTMPreParser::parse(root_type, str);
+    let res = PestNRTMParser::parse(root_type, str);
 
     match res {
         Err(e) => match e {
@@ -109,14 +151,6 @@ fn try_parse_nrtm(root_type: Rule, str: &str) -> Result<NRTMMessage, ParseError>
         },
         Ok(mut pairs) => try_parse_message(pairs.next().ok_or(ParseError::Incomplete)?),
     }
-}
-
-pub fn try_parse_nrtmv3(str: &str) -> Result<NRTMMessage, ParseError> {
-    try_parse_nrtm(Rule::v3_operation, str)
-}
-
-pub fn try_parse_nrtmv2(str: &str) -> Result<NRTMMessage, ParseError> {
-    try_parse_nrtm(Rule::v2_operation, str)
 }
 
 pub(crate) fn try_parse_message(pair: Pair<Rule>) -> Result<NRTMMessage, ParseError> {

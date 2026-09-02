@@ -1,4 +1,4 @@
-use crate::{NRTMMessage, ParseError, try_parse_nrtmv2, try_parse_nrtmv3};
+use crate::{NRTMMessage, NRTMParser, NRTMV2Parser, NRTMV3Parser, ParseError};
 use tokio_util::bytes::BytesMut;
 use tokio_util::codec::Decoder;
 
@@ -12,13 +12,13 @@ pub struct NRTMDec {
 impl NRTMDec {
     pub fn new_v2() -> Self {
         NRTMDec {
-            parser: try_parse_nrtmv2,
+            parser: NRTMV2Parser::try_parse,
         }
     }
 
     pub fn new_v3() -> Self {
         NRTMDec {
-            parser: try_parse_nrtmv3,
+            parser: NRTMV3Parser::try_parse,
         }
     }
 }
@@ -80,7 +80,7 @@ impl Decoder for NRTMDec {
 #[cfg(test)]
 mod tests {
     use crate::streaming::NRTMDec;
-    use crate::tests::fixtures;
+    use crate::tests::streaming_fixtures;
     use crate::{OpType, ParseError, Verb};
     use std::assert_matches;
     use std::io::{Error as IOError, ErrorKind};
@@ -112,7 +112,7 @@ mod tests {
 
     #[tokio::test]
     async fn v3_parser_error_signalled() {
-        let mut reader = fixtures::v3_reader_from(
+        let mut reader = streaming_fixtures::v3_reader_from(
             b"\
 ADD 324876
 
@@ -127,7 +127,7 @@ end-of: object
 
     #[tokio::test]
     async fn v3_non_utf8_error_signalled() {
-        let mut reader = fixtures::v3_reader_from(
+        let mut reader = streaming_fixtures::v3_reader_from(
             b"\
 ADD 324876
 
@@ -142,7 +142,7 @@ end-of: object
 
     #[tokio::test]
     async fn v3_malformed_serial_signalled() {
-        let mut reader = fixtures::v3_reader_from(
+        let mut reader = streaming_fixtures::v3_reader_from(
             b"\
 # should not fit into u64
 ADD 99999999999999999999
@@ -160,7 +160,7 @@ netname:        TRANSPORT-NET
 
     #[tokio::test]
     async fn v3_no_match_signalled() {
-        let mut reader = fixtures::v3_reader_from(
+        let mut reader = streaming_fixtures::v3_reader_from(
             b"\
 % The RIPE Database is subject to Terms and Conditions.
 % See https://docs.db.ripe.net/terms-conditions.html

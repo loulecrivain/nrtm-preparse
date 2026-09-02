@@ -1,0 +1,14 @@
+# NRTM 🌐 Parser 🦀
+
+`nrtm-parser` is a client library to work with the Near Real Time Mirroring protocol versions 2 and 3 event streams. It is not, in itself, a client, but you can build clients with it.
+
+It can be plugged into a source of NRTMv2/3 updates, and will provide structured objects describing the updates, with the raw RPSL string attached.
+
+It has support for parsing in a synchronous fashion, when for instance you already have all the data collected in a file.
+
+It also has support for parsing directly from `tokio` asynchronously readable objects (i.e TCP Streams for example). You can enable this capability via the `async-streaming` feature.
+
+## Dependencies
+This crate is built on:
+- the [Pest parser](https://crates.io/crates/pest) crate
+- [tokio](https://crates.io/crates/tokio), [tokio-util](https://crates.io/crates/tokio-util) and [tokio-stream](https://crates.io/crates/tokio-stream) for the async features

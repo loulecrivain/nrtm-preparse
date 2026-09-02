@@ -2,6 +2,12 @@
 name = "nrtm-parser"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+description = "(streaming) PEG parser for NRTMv2 and NRTMv3 event streams"
+readme = "README.md"
+repository = "https://github.com/wobcom/nrtm-parse"
+keywords = ["nrtm","rpsl","parser","whois","routing"]
+categories = ["network-programming", "encoding"]
 
 [dependencies]
 pest = "2.9.0"

@@ -12,3 +12,8 @@ It also has support for parsing directly from `tokio` asynchronously readable ob
 This crate is built on:
 - the [Pest parser](https://crates.io/crates/pest) crate
 - [tokio](https://crates.io/crates/tokio), [tokio-util](https://crates.io/crates/tokio-util) and [tokio-stream](https://crates.io/crates/tokio-stream) for the async features
+
+## Examples / How to hold it correctly 🔨
+You can find some code examples in the integration tests:
+- [single message parsing example](./tests/integration.rs)
+- [stream parsing example](./tests/streaming_integration.rs)

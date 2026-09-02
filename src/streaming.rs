@@ -10,13 +10,13 @@ pub struct NRTMDec {
 }
 
 impl NRTMDec {
-    fn new_v2() -> Self {
+    pub fn new_v2() -> Self {
         NRTMDec {
             parser: try_parse_nrtmv2,
         }
     }
 
-    fn new_v3() -> Self {
+    pub fn new_v3() -> Self {
         NRTMDec {
             parser: try_parse_nrtmv3,
         }
@@ -80,10 +80,13 @@ impl Decoder for NRTMDec {
 #[cfg(test)]
 mod tests {
     use crate::streaming::NRTMDec;
-    use crate::{OpType, Verb};
+    use crate::tests::fixtures;
+    use crate::{OpType, ParseError, Verb};
     use std::assert_matches;
+    use std::io::{Error as IOError, ErrorKind};
     use tokio::fs::File;
     use tokio_stream::StreamExt;
+    use tokio_test::io::Builder;
     use tokio_util::codec::FramedRead;
 
     #[tokio::test]
@@ -93,10 +96,109 @@ mod tests {
             .unwrap();
         let decoder = NRTMDec::new_v3();
         let mut reader = FramedRead::new(nrtmv3_sample, decoder);
+        let mut linear_id_counter = 65776763;
 
-        let res = reader.next().await.unwrap().unwrap();
-        assert_matches!(res.update, OpType::V3(Verb::ADD, 65776764));
-        let res = reader.next().await.unwrap().unwrap();
-        assert_matches!(res.update, OpType::V3(Verb::ADD, 65776765));
+        while let Some(Ok(res)) = reader.next().await {
+            match res.update {
+                OpType::V3(Verb::ADD, ctr) => {
+                    linear_id_counter += 1;
+                    assert_eq!(ctr, linear_id_counter);
+                }
+                _ => panic!("incorrect update {:?}", res.update),
+            }
+        }
+        assert_eq!(linear_id_counter, 65776784); // last object id
+    }
+
+    #[tokio::test]
+    async fn v3_parser_error_signalled() {
+        let mut reader = fixtures::v3_reader_from(
+            b"\
+ADD 324876
+
+object: property
+\\xxt*some-more: properties
+end-of: object
+
+",
+        );
+        assert_matches!(reader.next().await, Some(Err(ParseError::Parser(_))));
+    }
+
+    #[tokio::test]
+    async fn v3_non_utf8_error_signalled() {
+        let mut reader = fixtures::v3_reader_from(
+            b"\
+ADD 324876
+
+object: property\xF8\xF8
+some-more: properties
+end-of: object
+
+",
+        );
+        assert_matches!(reader.next().await, Some(Err(ParseError::NonUTF8Input(_))));
+    }
+
+    #[tokio::test]
+    async fn v3_malformed_serial_signalled() {
+        let mut reader = fixtures::v3_reader_from(
+            b"\
+# should not fit into u64
+ADD 99999999999999999999
+
+start-field:    yes
+netname:        TRANSPORT-NET
+
+",
+        );
+        assert_matches!(
+            reader.next().await,
+            Some(Err(ParseError::MalformedSerial(_, _)))
+        );
+    }
+
+    #[tokio::test]
+    async fn v3_no_match_signalled() {
+        let mut reader = fixtures::v3_reader_from(
+            b"\
+% The RIPE Database is subject to Terms and Conditions.
+% See https://docs.db.ripe.net/terms-conditions.html
+
+% lou: I am commenting that out, as in rx only stream
+% commands will not appear
+% -kg RIPE:3:65776764-LAST
+%START Version: 3 RIPE 65776764-65776784
+# comment
+",
+        );
+
+        assert_matches!(reader.next().await, Some(Err(ParseError::IoError(_))));
+    }
+
+    #[tokio::test]
+    async fn v3_io_error_signalled() {
+        let nrtmv3_truncated_message = b"\
+ADD 324876
+
+object: property
+some-more: properties
+end-of: object
+
+ADD 324876
+
+object: property
+some-more: properties
+end-of: obj
+";
+        let ioerroring_sample = Builder::new()
+            .read(nrtmv3_truncated_message)
+            .read_error(IOError::new(ErrorKind::BrokenPipe, "connection closed"))
+            .build();
+        let decoder = NRTMDec::new_v3();
+        let mut reader = FramedRead::new(ioerroring_sample, decoder);
+
+        reader.next().await.unwrap().unwrap(); // chuck first object
+        assert_matches!(reader.next().await, Some(Err(ParseError::IoError(_))));
     }
 }

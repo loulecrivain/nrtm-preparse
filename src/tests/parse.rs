@@ -152,6 +152,22 @@ and: another one
 }
 
 #[test]
+fn signal_broken_nrtmv2() {
+    let broken_nrtmv2 = "\
+ADD
+
+some: property
+\\xxtand: another one with an incorrect syntax
+plus-some: stuff afterwards
+
+";
+
+    let res = crate::try_parse_nrtmv2(broken_nrtmv2);
+
+    assert_matches!(res, Err(ParseError::Parser(_)));
+}
+
+#[test]
 fn signal_no_match() {
     let no_match_nrtmv2 = "\
 lsdjkflkjsdlfkjsldkjf;lsd

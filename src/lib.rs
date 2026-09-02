@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use pest::error::Error;
+use pest::error::{Error, InputLocation};
 use pest::iterators::Pair;
 use pest_derive::Parser;
 use std::mem::discriminant;
@@ -70,12 +70,29 @@ fn try_parse_nrtm(root_type: Rule, str: &str) -> Result<NRTMMessage<'_>, ParseEr
                         ref positives,
                         ref negatives,
                     },
+                location: ref input_location,
                 ..
             } => match (&positives[..], &negatives[..]) {
                 ([r, ..], _) if discriminant(r) == discriminant(&root_type) => {
                     Err(ParseError::NoMatch)
                 } // parser couldnt descend further than root
-                ([_, ..], _) => Err(ParseError::Incomplete), // not root so parser has descended but input is incomplete
+                ([_, ..], _) => {
+                    // not root so parser has descended but input is either
+                    //  incomplete or incorrect
+                    let end = match input_location {
+                        InputLocation::Pos(offset) => offset,
+                        InputLocation::Span((_, end)) => end,
+                    };
+                    if *end >= str.len() {
+                        // awaiting more bytes to match
+                        Err(ParseError::Incomplete)
+                    } else {
+                        // some more bytes are already there but they dont match
+                        // which means we stopped at an incorrect pattern
+                        // and cannot progress further
+                        Err(ParseError::Parser(e))
+                    }
+                }
                 _ => Err(ParseError::Parser(e)),
             },
             _ => Err(ParseError::Parser(e)),

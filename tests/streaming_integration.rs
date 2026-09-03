@@ -1,6 +1,11 @@
-use nrtm_parser::{NRTMV3Parser, OpType, Verb};
 #[cfg(feature = "async-streaming")]
-use {nrtm_parser::StreamingNRTMParser, tokio::fs::File, tokio_stream::StreamExt};
+use {
+    nrtm_parser::StreamingNRTMParser,
+    nrtm_parser::{NRTMV3Parser, OpType, Verb},
+    tokio::fs::File,
+    tokio_stream::StreamExt,
+};
+
 #[cfg(feature = "async-streaming")]
 #[tokio::test]
 async fn parse_message_stream_example() {
